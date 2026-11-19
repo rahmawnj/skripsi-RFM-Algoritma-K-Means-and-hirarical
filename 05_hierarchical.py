@@ -1,16 +1,14 @@
 # 05_hierarchical.py
-# Agglomerative Hierarchical Clustering (Ward, Euclidean).
-# Semua nilai k diuji agar perbandingan dengan K-Means netral.
+# Standard Agglomerative Hierarchical Clustering dengan Ward linkage dan Euclidean distance.
+# Satu pohon hierarki dibangun sekali, lalu dipotong pada setiap nilai k.
 
 from pathlib import Path
 import time
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from sklearn.cluster import AgglomerativeClustering
-from sklearn.neighbors import kneighbors_graph
+from scipy.cluster.hierarchy import linkage, dendrogram, cut_tree
 from sklearn.metrics import silhouette_score, davies_bouldin_score
-from scipy.cluster.hierarchy import linkage, dendrogram
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 DATA_PATH = SCRIPT_DIR / "rfm_scaled.csv"
@@ -22,87 +20,95 @@ DENDROGRAM_PATH = SCRIPT_DIR / "dendrogram_hierarchical.png"
 
 SCALED_COLUMNS = ["R_scaled", "F_scaled", "M_scaled"]
 RANDOM_STATE = 42
-DENDROGRAM_SAMPLE_SIZE = 1000
-CONNECTIVITY_NEIGHBORS = 10
+K_VALUES = range(2, 11)
+MAX_CUSTOMERS_FOR_FULL_HIERARCHY = 12000
 
 def main():
     for path in [DATA_PATH, RFM_PATH, KMEANS_METRICS_PATH]:
         if not path.is_file():
-            raise FileNotFoundError(f"{path.name} belum tersedia. Jalankan file sebelumnya.")
+            raise FileNotFoundError(f"{path.name} belum tersedia. Jalankan tahap sebelumnya.")
 
     scaled = pd.read_csv(DATA_PATH)
     original = pd.read_csv(RFM_PATH)
     kmeans_metrics = pd.read_csv(KMEANS_METRICS_PATH)
+
     if len(scaled) != len(original):
         raise ValueError("Jumlah baris data scaled dan RFM asli berbeda.")
+    if not original["Customer"].astype(str).equals(scaled["Customer"].astype(str)):
+        raise ValueError("Urutan Customer pada hasil_rfm.csv dan rfm_scaled.csv berbeda.")
 
-    X = scaled[SCALED_COLUMNS].to_numpy()
+    X = scaled[SCALED_COLUMNS].to_numpy(dtype=float)
     n_samples = len(X)
-    tested_k = [int(k) for k in kmeans_metrics["k"].tolist() if int(k) < n_samples]
-    if not tested_k:
-        raise ValueError("Tidak ada nilai k valid dari hasil eksperimen K-Means.")
+    if n_samples < 3:
+        raise ValueError("Minimal diperlukan 3 pelanggan untuk clustering.")
+    if n_samples > MAX_CUSTOMERS_FOR_FULL_HIERARCHY:
+        raise MemoryError(
+            f"Jumlah pelanggan {n_samples:,} melebihi batas aman skrip "
+            f"({MAX_CUSTOMERS_FOR_FULL_HIERARCHY:,}) untuk full Ward linkage. "
+            "Hierarchical standar membutuhkan memori kuadratik. Jangan mengganti "
+            "diam-diam ke metode constrained; diskusikan strategi sampling/komputasi "
+            "dengan pembimbing agar metodologi penelitian tetap jelas."
+        )
 
-    # KNN connectivity membatasi tetangga yang boleh digabung pada tiap langkah.
-    # Graph dibuat sekali dan digunakan kembali untuk setiap jumlah cluster.
-    neighbors = min(CONNECTIVITY_NEIGHBORS, n_samples - 1)
-    connectivity = kneighbors_graph(
-        X, n_neighbors=neighbors, mode="connectivity", include_self=False
+    tested_k = [int(k) for k in K_VALUES if int(k) < n_samples]
+    tested_k = [k for k in tested_k if k in set(kmeans_metrics["k"].astype(int))]
+    if not tested_k:
+        raise ValueError("Tidak ada nilai k bersama yang valid dengan eksperimen K-Means.")
+
+    print(f"Membangun pohon Hierarchical Ward untuk {n_samples:,} pelanggan...")
+    start = time.perf_counter()
+    # Ward hanya valid dengan Euclidean distance.
+    hierarchy = linkage(X, method="ward", metric="euclidean", optimal_ordering=False)
+    tree_fit_seconds = time.perf_counter() - start
+    print(f"Pohon hierarki selesai dalam {tree_fit_seconds:.3f} detik.")
+
+    # Gunakan subset indeks yang sama untuk menghitung Silhouette semua algoritma.
+    silhouette_sample_size = min(5000, n_samples)
+    rng = np.random.default_rng(RANDOM_STATE)
+    sample_indices = np.sort(
+        rng.choice(n_samples, size=silhouette_sample_size, replace=False)
     )
 
     records = []
     all_labels = pd.DataFrame({"Customer": original["Customer"]})
-    print(f"Menjalankan Hierarchical untuk {n_samples:,} pelanggan...")
+    print("\nEvaluasi pemotongan pohon pada setiap jumlah cluster...")
     for k in tested_k:
-        model = AgglomerativeClustering(
-            n_clusters=k,
-            metric="euclidean",
-            linkage="ward",
-            connectivity=connectivity,
-            compute_full_tree=True,
-        )
-        start = time.perf_counter()
-        labels = model.fit_predict(X)
-        elapsed = time.perf_counter() - start
+        labels = cut_tree(hierarchy, n_clusters=[k]).reshape(-1).astype(int)
+        sample_labels = labels[sample_indices]
+        if len(np.unique(sample_labels)) < 2:
+            sil = float("nan")
+        else:
+            sil = silhouette_score(X[sample_indices], sample_labels)
 
-        silhouette_sample_size = min(5000, len(X))
-        sil = silhouette_score(
-            X, labels, sample_size=silhouette_sample_size, random_state=RANDOM_STATE
-        )
         dbi = davies_bouldin_score(X, labels)
         records.append({
             "k": k,
             "linkage": "ward",
             "metric": "euclidean",
-            "connectivity_neighbors": neighbors,
             "silhouette_score": float(sil),
             "silhouette_sample_size": silhouette_sample_size,
             "davies_bouldin_index": float(dbi),
-            "fit_time_seconds": float(elapsed),
+            "tree_fit_time_seconds": float(tree_fit_seconds),
+            "label_cut_time_seconds": None,
         })
         all_labels[f"Cluster_k{k}"] = labels
-        print(f"k={k:2d} | silhouette={sil:.4f} | DBI={dbi:.4f} | waktu={elapsed:.3f} detik")
+        print(f"k={k:2d} | silhouette={sil:.4f} | DBI={dbi:.4f}")
 
     metrics = pd.DataFrame(records)
     metrics.to_csv(METRICS_PATH, index=False)
     all_labels.to_csv(ALL_LABELS_PATH, index=False)
 
-    # Dendrogram sampel deterministik; model dan metrik di atas tetap seluruh pelanggan.
-    sample_size = min(DENDROGRAM_SAMPLE_SIZE, n_samples)
-    rng = np.random.default_rng(RANDOM_STATE)
-    sample_indices = np.sort(rng.choice(n_samples, size=sample_size, replace=False))
-    sample_linkage = linkage(X[sample_indices], method="ward", metric="euclidean")
-
-    fig, ax = plt.subplots(figsize=(14, 7))
+    fig, ax = plt.subplots(figsize=(15, 8))
     dendrogram(
-        sample_linkage,
+        hierarchy,
         truncate_mode="lastp",
-        p=35,
+        p=40,
         show_leaf_counts=True,
         leaf_rotation=45,
         leaf_font_size=9,
         ax=ax,
     )
-    ax.set_title(f"Dendrogram Hierarchical (sampel {sample_size:,} pelanggan)")
+    ax.set_title("Dendrogram Agglomerative Hierarchical - Ward")
     ax.set_xlabel("Kelompok / jumlah pelanggan pada cabang")
     ax.set_ylabel("Jarak penggabungan (Ward)")
     ax.grid(axis="y", alpha=0.2)
@@ -111,12 +117,13 @@ def main():
     plt.show()
 
     print("\n" + "=" * 72)
-    print("HASIL UJI HIERARCHICAL CLUSTERING")
+    print("HASIL HIERARCHICAL CLUSTERING")
     print("=" * 72)
     print(metrics.round(4).to_string(index=False))
-    print("\nLabel untuk semua nilai k disimpan di:", ALL_LABELS_PATH)
-    print("K final belum dipilih. Tahap 06 memilih k bersama berdasarkan rata-rata Silhouette kedua algoritma.")
-    print("Dendrogram sampel:", DENDROGRAM_PATH)
+    print(f"\nJumlah pelanggan: {n_samples:,}")
+    print(f"Waktu membangun pohon Ward: {tree_fit_seconds:.4f} detik")
+    print("Label semua k:", ALL_LABELS_PATH)
+    print("Dendrogram dari pohon yang sama:", DENDROGRAM_PATH)
 
 if __name__ == "__main__":
     main()
