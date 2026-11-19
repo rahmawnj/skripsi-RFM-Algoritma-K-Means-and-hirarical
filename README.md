@@ -2,96 +2,125 @@
 
 ## 1. Topik penelitian
 
-**Judul kerja yang disesuaikan dengan dataset:**
+**Judul kerja:**
 
 Analisis Perbandingan Algoritma K-Means dan Hierarchical Clustering untuk Segmentasi Pelanggan Berdasarkan Recency, Frequency, dan Monetary (RFM) pada Dataset Electronic Sales September 2023–September 2024.
 
-> Proposal awal menyebut dataset Olist, tetapi dataset yang benar-benar digunakan dalam proyek ini adalah Electronic Sales Sep2023-Sep2024 dari Kaggle. Nama Olist perlu dihapus dari judul, latar belakang, sumber data, dan metodologi agar konsisten.
+Dataset penelitian yang digunakan adalah Electronic Sales Sep2023-Sep2024 dari Kaggle, bukan Olist. Pastikan nama dataset konsisten di judul, latar belakang, sumber data, dan metodologi skripsi.
 
 ## 2. Sumber dan gambaran dataset
 
 - Sumber: [Electronic Sales Sep2023-Sep2024 — Kaggle](https://www.kaggle.com/datasets/cameronseamons/electronic-sales-sep2023-sep2024)
-- File: Electronic_sales_Sep2023-Sep2024.csv
-- Periode data: September 2023–September 2024.
-- Dataset berisi catatan pembelian pelanggan pada bisnis penjualan produk elektronik.
-- Kolom yang relevan untuk RFM:
-  - Customer ID: identitas pelanggan.
-  - Purchase Date: tanggal pembelian.
-  - Order Status: status pesanan, misalnya Completed atau Cancelled.
-  - Total Price: nilai harga produk dalam pesanan.
-  - Add-on Total: nilai pembelian add-on.
+- File: `Electronic_sales_Sep2023-Sep2024.csv`
+- Periode: September 2023–September 2024.
+- Kolom relevan: `Customer ID`, `Purchase Date`, `Order Status`, `Total Price`, dan `Add-on Total`.
 
-Dataset tidak menyediakan kolom Order ID/Transaction ID pada struktur yang digunakan. Untuk eksperimen ini, satu baris diperlakukan sebagai satu pesanan sesuai deskripsi struktur dataset. Asumsi ini perlu ditulis secara eksplisit dan diverifikasi kembali melalui eksplorasi data.
+Struktur dataset yang dipublikasikan pada salinan dataset yang dapat diperiksa menunjukkan 20.000 baris dan 16 kolom. Referensi proyek lain juga menjelaskan satu baris sebagai satu pesanan. Namun, skrip eksplorasi tetap harus dijalankan pada salinan CSV yang dipakai dalam penelitian ini untuk memastikan struktur, duplikasi, dan asumsi tersebut. Dataset tidak memiliki kolom Order ID khusus pada struktur yang digunakan.
 
-## 3. Fokus dan batasan penelitian
-
-Penelitian berfokus pada segmentasi pelanggan berdasarkan perilaku pembelian yang tercatat dalam dataset Electronic Sales. Pesanan dengan status selain Completed tidak dihitung sebagai pembelian terealisasi dalam pembentukan RFM.
-
-K-Means dan Agglomerative Hierarchical Clustering dibandingkan menggunakan:
-- Dataset dan baris pelanggan yang sama.
-- Fitur RFM yang sama.
-- Tahapan pembersihan dan standardisasi yang sama.
-- Jumlah cluster yang sebanding.
-- Metrik evaluasi dan lingkungan komputasi yang sama.
-
-Fitur demografis, jenis produk, metode pembayaran, dan rating tidak digunakan sebagai fitur pembentuk cluster utama. Informasi tersebut dapat digunakan untuk membantu mendeskripsikan profil segmen, bukan untuk membentuk cluster RFM.
-
-## 4. Definisi operasional RFM
+## 3. Definisi operasional RFM
 
 | Fitur | Definisi operasional | Kolom sumber |
 |---|---|---|
-| Recency | Jumlah hari antara tanggal acuan analisis dan tanggal pembelian Completed terakhir pelanggan. Semakin kecil nilainya, semakin baru pembeliannya. | Purchase Date |
-| Frequency | Jumlah pesanan berstatus Completed milik pelanggan. Karena tidak tersedia Order ID, satu baris diperlakukan sebagai satu pesanan. | Customer ID, Order Status |
-| Monetary | Total pengeluaran pembelian pelanggan, dihitung dari penjumlahan Total Price dan Add-on Total pada pesanan Completed. | Total Price, Add-on Total |
+| Recency | Jumlah hari dari tanggal acuan analisis ke tanggal pembelian Completed terakhir pelanggan. Semakin kecil semakin baru. | Purchase Date |
+| Frequency | Jumlah baris pesanan berstatus Completed per pelanggan. Ini mengasumsikan satu baris = satu pesanan. | Customer ID, Order Status |
+| Monetary | Total pengeluaran pesanan Completed, yaitu penjumlahan Total Price + Add-on Total. | Total Price, Add-on Total |
 
-Tanggal acuan default ditetapkan satu hari setelah tanggal pembelian Completed paling akhir dalam dataset. Tanggal ini harus dilaporkan agar perhitungan Recency dapat direplikasi.
+Tanggal acuan default adalah satu hari setelah tanggal pembelian Completed terakhir. `Total Price` dan `Add-on Total` diperlakukan sebagai dua komponen nilai pembelian yang berbeda; pastikan definisi ini sesuai dokumentasi dataset dan arahan dosen pembimbing.
 
-## 5. Rumusan masalah
+## 4. Fokus penelitian dan batasan
 
-1. Bagaimana penerapan K-Means dan Agglomerative Hierarchical Clustering untuk segmentasi pelanggan berdasarkan fitur RFM pada dataset Electronic Sales?
-2. Bagaimana karakteristik setiap segmen pelanggan berdasarkan Recency, Frequency, dan Monetary?
-3. Bagaimana perbandingan kualitas cluster dan waktu komputasi kedua algoritma berdasarkan Silhouette Score dan Davies–Bouldin Index?
+Penelitian membandingkan K-Means dan Agglomerative Hierarchical Clustering menggunakan:
+- Baris pelanggan dan fitur RFM yang sama.
+- Prosedur pembersihan, transformasi, dan standardisasi yang sama.
+- Jumlah cluster yang sama saat perbandingan akhir.
+- Metrik evaluasi dan lingkungan komputasi yang sama.
 
-## 6. Tujuan penelitian
+Fitur demografis, jenis produk, metode pembayaran, dan rating tidak dipakai untuk membentuk cluster RFM. Fitur tersebut dapat dipakai sebagai konteks deskriptif tambahan jika diperlukan.
 
-1. Menerapkan K-Means dan Agglomerative Hierarchical Clustering pada fitur RFM pelanggan.
-2. Mengidentifikasi dan menginterpretasikan karakteristik setiap segmen pelanggan.
-3. Membandingkan kualitas hasil clustering dan waktu komputasi kedua algoritma.
+## 5. Metodologi eksperimen
 
-## 7. Metodologi eksperimen
+1. Mengunduh dan mengeksplorasi dataset.
+2. Memeriksa tipe data, missing values, duplikasi, status pesanan, tanggal, dan nilai transaksi.
+3. Menggunakan pesanan Completed untuk membentuk RFM.
+4. Mengagregasi data per Customer ID menjadi Recency, Frequency, dan Monetary.
+5. Memeriksa distribusi fitur RFM.
+6. Menerapkan transformasi `log1p` untuk mengurangi skewness, lalu `StandardScaler` agar skala ketiga fitur sebanding. Outlier tidak otomatis dihapus agar pelanggan bernilai tinggi tidak hilang dari populasi.
+7. Menguji K-Means pada k=2 sampai k=10 (atau sampai k maksimum yang valid), lalu memilih k dengan Silhouette Score tertinggi pada rentang uji.
+8. Menjalankan Agglomerative Hierarchical Clustering dengan linkage Ward dan Euclidean distance pada seluruh data, menggunakan graph tetangga terdekat untuk membatasi konektivitas.
+9. Menggunakan nilai k yang sama dengan K-Means untuk perbandingan akhir.
+10. Menghitung Silhouette Score, Davies-Bouldin Index, dan waktu fit.
+11. Menginterpretasikan cluster menggunakan nilai RFM asli, bukan nilai standardisasi.
+12. Menyimpulkan hasil dengan mempertimbangkan metrik, profil, ukuran cluster, dan keterbatasan metode.
 
-1. Studi literatur tentang RFM, K-Means, Hierarchical Clustering, standardisasi, dan evaluasi clustering.
-2. Mengunduh dan memeriksa dataset Electronic Sales.
-3. Membersihkan data: memeriksa nilai kosong, tipe data, duplikasi, tanggal, nominal, dan status pesanan.
-4. Memilih pesanan Completed untuk menghitung pembelian yang terealisasi.
-5. Mengagregasi data per Customer ID menjadi Recency, Frequency, dan Monetary.
-6. Memeriksa distribusi dan pencilan fitur RFM.
-7. Melakukan transformasi yang diperlukan dan standardisasi fitur dengan metode yang sama untuk kedua algoritma.
-8. Menentukan jumlah cluster menggunakan prosedur konsisten, misalnya pengujian beberapa nilai k dan analisis pendukung.
-9. Menjalankan K-Means dan Agglomerative Hierarchical Clustering pada data RFM terstandardisasi.
-10. Mengevaluasi hasil menggunakan Silhouette Score, Davies–Bouldin Index, dan waktu komputasi.
-11. Menginterpretasikan profil cluster menggunakan nilai RFM asli, bukan hanya nilai hasil standardisasi.
-12. Menarik kesimpulan berdasarkan hasil eksperimen.
+**Catatan dendrogram:** model Hierarchical dan metriknya dihitung pada seluruh pelanggan. Dendrogram divisualisasikan dari sampel pelanggan yang dipilih secara deterministik (maksimum 1.000) agar grafik dapat dibaca dan komputasi visualisasi lebih ringan. Karena itu, dendrogram adalah ilustrasi struktur penggabungan pada sampel, bukan pohon lengkap seluruh pelanggan.
 
-## 8. Metrik evaluasi
+## 6. Metrik evaluasi
 
-- Silhouette Score: semakin tinggi umumnya semakin baik, dengan rentang -1 sampai 1.
-- Davies–Bouldin Index (DBI): semakin rendah umumnya semakin baik.
-- Waktu komputasi: durasi proses clustering, diukur dengan prosedur dan perangkat yang sama.
+- **Silhouette Score:** rentang -1 sampai 1; semakin tinggi umumnya semakin baik.
+- **Davies-Bouldin Index (DBI):** semakin rendah umumnya semakin baik.
+- **Waktu fit:** durasi proses pelatihan/fitting algoritma. Waktu preprocessing dan evaluasi tidak dicampurkan ke angka ini.
 
-Catat jumlah cluster, jumlah pelanggan yang dianalisis, parameter algoritma, linkage dan metric Hierarchical Clustering, serta random seed K-Means.
+Label cluster seperti 0, 1, dan 2 adalah penanda teknis, bukan urutan kualitas atau ranking pelanggan.
 
-## 9. Struktur file proyek
+## 7. Struktur file
 
-- 01_eksplorasi_dataset.py — membaca dan mengeksplorasi CSV secara otomatis.
-- 02_perhitungan_rfm.py — membentuk tabel RFM dan menyimpan hasil_rfm.csv.
-- Electronic_sales_Sep2023-Sep2024.csv — dataset penelitian (file lokal; tidak harus di-commit ke GitHub).
-- hasil_rfm.csv — hasil olahan yang dihasilkan oleh script.
+| File | Fungsi |
+|---|---|
+| `01_eksplorasi_dataset.py` | Membaca dataset dan memeriksa struktur, missing values, status, serta statistik. |
+| `02_perhitungan_rfm.py` | Menghitung RFM per pelanggan dan menyimpan `hasil_rfm.csv`. |
+| `03_preprocessing.py` | Transformasi log1p, standardisasi, dan visualisasi distribusi preprocessing. |
+| `04_kmeans.py` | Elbow, Silhouette Score untuk beberapa k, hasil cluster, profil, dan scatter plot PCA. |
+| `05_hierarchical.py` | Agglomerative Hierarchical, dendrogram sampel, profil cluster, dan scatter plot PCA. |
+| `06_evaluasi_perbandingan.py` | Tabel dan grafik perbandingan metrik serta ringkasan hasil. |
 
-## 10. Catatan metodologis penting
+File hasil yang dibuat otomatis:
+- `hasil_rfm.csv`
+- `visualisasi_distribusi_rfm.png`
+- `rfm_scaled.csv`
+- `preprocessing_info.json`
+- `visualisasi_preprocessing.png`
+- `kmeans_metrics.csv`
+- `hasil_kmeans.csv`
+- `profil_cluster_kmeans.csv`
+- `grafik_elbow_kmeans.png`
+- `grafik_silhouette_kmeans.png`
+- `scatter_kmeans.png`
+- `hierarchical_metrics.csv`
+- `hasil_hierarchical.csv`
+- `profil_cluster_hierarchical.csv`
+- `dendrogram_hierarchical.png`
+- `scatter_hierarchical.png`
+- `perbandingan_algoritma.csv`
+- `grafik_perbandingan_algoritma.png`
+- `ringkasan_perbandingan.txt`
 
-- Jangan menyebut dataset ini sebagai Olist. Dataset Olist dan Electronic Sales adalah dua dataset berbeda.
-- Pastikan asumsi satu baris = satu pesanan sesuai dengan struktur file yang benar-benar dianalisis. Jika satu pesanan ternyata tersebar dalam beberapa baris, Frequency dan Monetary harus diagregasi per pesanan terlebih dahulu.
-- Monetary menggunakan Total Price + Add-on Total sebagai definisi total pengeluaran. Keputusan ini perlu dijelaskan dan dikonfirmasi dengan dosen pembimbing. Jika hanya nilai produk yang dikehendaki, gunakan Total Price saja.
-- Standardisasi harus diterapkan pada matriks RFM yang sama sebelum data diberikan kepada kedua algoritma.
-- Hasil clustering tidak otomatis menunjukkan segmen pemasaran yang benar; interpretasi harus didukung profil RFM dan keterbatasan dataset.
+## 8. Cara menjalankan di Google Colab
+
+Pastikan file CSV berada satu folder dengan seluruh file Python. Setelah `git pull origin main`, jalankan satu per satu dalam notebook:
+
+```python
+%run 01_eksplorasi_dataset.py
+%run 02_perhitungan_rfm.py
+%run 03_preprocessing.py
+%run 04_kmeans.py
+%run 05_hierarchical.py
+%run 06_evaluasi_perbandingan.py
+```
+
+Jika library belum tersedia:
+
+```python
+!pip install -r requirements.txt
+```
+
+Jalankan berurutan karena setiap skrip membaca hasil dari tahap sebelumnya.
+
+## 9. Catatan metodologis dan batasan
+
+- Pastikan asumsi satu baris = satu pesanan benar untuk file CSV yang dianalisis. Jika tidak, Frequency dan Monetary harus dihitung setelah agregasi berdasarkan ID pesanan yang benar.
+- Periksa definisi Total Price dan Add-on Total agar tidak terjadi penghitungan ganda.
+- Standardisasi harus memakai fitur RFM yang sama untuk kedua algoritma.
+- Agglomerative Hierarchical dapat lebih berat daripada K-Means pada jumlah pelanggan besar. Penggunaan graph tetangga membantu membatasi konektivitas, tetapi waktu dan kebutuhan memori tetap perlu diamati saat eksperimen.
+- Dendrogram yang ditampilkan adalah sampel, sedangkan hasil cluster dan evaluasi model menggunakan seluruh pelanggan.
+- Hasil clustering tidak otomatis menjadi segmentasi pemasaran yang benar. Interpretasi perlu didukung profil RFM dan keterbatasan dataset.
+- Hasil akhir dan angka penelitian hanya boleh ditulis setelah skrip dijalankan pada CSV penelitian dan outputnya diperiksa.
