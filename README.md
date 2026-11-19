@@ -56,7 +56,7 @@ Fitur demografis, jenis produk, metode pembayaran, dan rating tidak dipakai untu
 
 ## 6. Metrik evaluasi
 
-- **Silhouette Score:** rentang -1 sampai 1; semakin tinggi umumnya semakin baik.
+- **Silhouette Score:** rentang -1 sampai 1; semakin tinggi umumnya semakin baik. Untuk menjaga waktu komputasi pada ribuan pelanggan, skor dihitung pada sampel acak tetap maksimum 5.000 pelanggan dengan seed 42. Ukuran sampel yang sama dipakai untuk kedua algoritma dan seluruh nilai k.
 - **Davies-Bouldin Index (DBI):** semakin rendah umumnya semakin baik.
 - **Waktu fit:** durasi proses pelatihan/fitting algoritma. Waktu preprocessing dan evaluasi tidak dicampurkan ke angka ini.
 
