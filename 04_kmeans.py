@@ -43,12 +43,16 @@ def main():
         labels = model.fit_predict(X)
         elapsed = time.perf_counter() - start
 
-        sil = silhouette_score(X, labels)
+        silhouette_sample_size = min(5000, len(X))
+        sil = silhouette_score(
+            X, labels, sample_size=silhouette_sample_size, random_state=RANDOM_STATE
+        )
         dbi = davies_bouldin_score(X, labels)
         records.append({
             "k": k,
             "inertia": float(model.inertia_),
             "silhouette_score": float(sil),
+            "silhouette_sample_size": silhouette_sample_size,
             "davies_bouldin_index": float(dbi),
             "fit_time_seconds": float(elapsed),
         })
