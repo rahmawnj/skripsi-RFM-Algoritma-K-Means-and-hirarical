@@ -1,75 +1,107 @@
 # 02_perhitungan_rfm.py
-# Jalankan setelah nama kolom dataset diketahui dari 01_eksplorasi_dataset.py.
-# Tujuan: membentuk tabel Recency, Frequency, Monetary per pelanggan.
+# Menghitung RFM dari dataset Electronic Sales Sep 2023 - Sep 2024.
+# Tidak ada dialog upload. Dataset dicari otomatis di folder script
+# atau di cache KaggleHub.
 
 from pathlib import Path
 import pandas as pd
 
-# ========================= KONFIGURASI =========================
-DATA_PATH = ""  # Contoh: "/content/data_penjualan.csv"
+SCRIPT_DIR = Path(__file__).resolve().parent
+DATA_FILENAME = "Electronic_sales_Sep2023-Sep2024.csv"
+KAGGLEHUB_PATH = (
+    Path.home()
+    / ".cache/kagglehub/datasets/cameronseamons/"
+      "electronic-sales-sep2023-sep2024/versions/5"
+    / DATA_FILENAME
+)
 
-# Ganti nilai berikut sesuai nama kolom yang benar-benar ada di dataset.
+OUTPUT_PATH = SCRIPT_DIR / "hasil_rfm.csv"
+
+# Nama kolom sesuai dataset Electronic Sales.
 CUSTOMER_COLUMN = "Customer ID"
-TRANSACTION_COLUMN = "Transaction ID"
-DATE_COLUMN = "Transaction Date"
-AMOUNT_COLUMN = "Total Amount"
+DATE_COLUMN = "Purchase Date"
+AMOUNT_COLUMN = "Total Price"
+STATUS_COLUMN = "Order Status"
 
-# Tanggal acuan Recency. None berarti satu hari setelah tanggal transaksi terakhir.
-ANALYSIS_DATE = None  # Contoh: "2024-10-01"
-OUTPUT_PATH = "/content/hasil_rfm.csv"
-# ===============================================================
+# None = satu hari setelah tanggal transaksi terakhir yang dipakai.
+ANALYSIS_DATE = None
 
+def find_dataset():
+    candidates = [
+        SCRIPT_DIR / DATA_FILENAME,
+        Path("/content") / DATA_FILENAME,
+        KAGGLEHUB_PATH,
+    ]
 
-def read_data(path):
-    path = Path(path)
-    if not path.exists():
-        raise FileNotFoundError(
-            f"Dataset tidak ditemukan: {path}. Isi DATA_PATH terlebih dahulu."
-        )
-    if path.suffix.lower() == ".csv":
-        try:
-            return pd.read_csv(path)
-        except UnicodeDecodeError:
-            return pd.read_csv(path, encoding="latin-1")
-    if path.suffix.lower() in (".xlsx", ".xls"):
-        return pd.read_excel(path)
-    raise ValueError("Gunakan dataset CSV atau Excel.")
+    for candidate in candidates:
+        if candidate.is_file():
+            print(f"Dataset ditemukan: {candidate}")
+            return candidate
 
+    searched = "\\n".join(f"- {path}" for path in candidates)
+    raise FileNotFoundError(
+        "Dataset CSV tidak ditemukan. Lokasi yang sudah diperiksa:\\n"
+        f"{searched}\\n"
+        "Pastikan file CSV berada satu folder dengan file Python."
+    )
 
-def build_rfm(dataframe):
-    required = [CUSTOMER_COLUMN, TRANSACTION_COLUMN, DATE_COLUMN, AMOUNT_COLUMN]
-    missing_columns = [column for column in required if column not in dataframe.columns]
-    if missing_columns:
+def read_dataset(path):
+    try:
+        return pd.read_csv(path)
+    except UnicodeDecodeError:
+        return pd.read_csv(path, encoding="latin-1")
+
+def calculate_rfm(raw):
+    required = [CUSTOMER_COLUMN, DATE_COLUMN, AMOUNT_COLUMN]
+    missing = [column for column in required if column not in raw.columns]
+    if missing:
         raise KeyError(
-            "Kolom berikut tidak ditemukan: "
-            + ", ".join(missing_columns)
-            + "\nKolom tersedia: "
-            + ", ".join(map(str, dataframe.columns))
-            + "\nSesuaikan konfigurasi kolom di bagian atas file."
+            f"Kolom wajib tidak ditemukan: {missing}\\n"
+            f"Kolom yang tersedia: {raw.columns.tolist()}"
         )
 
-    data = dataframe[required].copy()
+    data = raw.copy()
+
+    # Konversi tipe data.
     data[DATE_COLUMN] = pd.to_datetime(data[DATE_COLUMN], errors="coerce")
     data[AMOUNT_COLUMN] = pd.to_numeric(data[AMOUNT_COLUMN], errors="coerce")
 
-    # Baris yang tidak memiliki identitas pelanggan, transaksi, tanggal,
-    # atau nominal valid tidak digunakan dalam perhitungan RFM.
+    # Hilangkan baris yang tidak memiliki data inti untuk RFM.
     data = data.dropna(subset=required)
-    data = data[data[AMOUNT_COLUMN] >= 0]
+
+    # Dataset memiliki status Completed dan Cancelled.
+    # Untuk analisis pembelian, hanya transaksi Completed yang dihitung.
+    if STATUS_COLUMN in data.columns:
+        status = data[STATUS_COLUMN].astype(str).str.strip().str.lower()
+        before = len(data)
+        data = data[status == "completed"].copy()
+        print(f"Baris non-Completed yang tidak dihitung: {before - len(data):,}")
+
+    # Nilai penjualan negatif tidak dipakai dalam Monetary.
+    data = data[data[AMOUNT_COLUMN] >= 0].copy()
 
     if data.empty:
-        raise ValueError("Tidak ada transaksi valid setelah pembersihan dasar.")
+        raise ValueError(
+            "Tidak ada data pembelian valid. Periksa kolom tanggal, nominal, "
+            "dan nilai Order Status."
+        )
 
-    if ANALYSIS_DATE:
-        analysis_date = pd.Timestamp(ANALYSIS_DATE)
+    data["_purchase_day"] = data[DATE_COLUMN].dt.normalize()
+
+    if ANALYSIS_DATE is not None:
+        analysis_date = pd.Timestamp(ANALYSIS_DATE).normalize()
     else:
-        analysis_date = data[DATE_COLUMN].max().normalize() + pd.Timedelta(days=1)
+        analysis_date = data["_purchase_day"].max() + pd.Timedelta(days=1)
 
+    # Dataset ini tidak menyediakan Transaction ID/order ID.
+    # Frequency dihitung dari jumlah tanggal pembelian unik per pelanggan,
+    # agar beberapa baris pada tanggal yang sama tidak otomatis dihitung
+    # sebagai beberapa kunjungan/transaksi.
     rfm = (
         data.groupby(CUSTOMER_COLUMN)
         .agg(
-            Recency=(DATE_COLUMN, lambda dates: (analysis_date - dates.max().normalize()).days),
-            Frequency=(TRANSACTION_COLUMN, "nunique"),
+            Recency=("_purchase_day", lambda dates: (analysis_date - dates.max()).days),
+            Frequency=("_purchase_day", "nunique"),
             Monetary=(AMOUNT_COLUMN, "sum"),
         )
         .reset_index()
@@ -80,23 +112,30 @@ def build_rfm(dataframe):
     rfm["Frequency"] = rfm["Frequency"].astype(int)
     rfm["Monetary"] = rfm["Monetary"].round(2)
 
-    return rfm, analysis_date
-
+    return rfm, analysis_date, len(data)
 
 if __name__ == "__main__":
-    if not DATA_PATH.strip():
-        raise ValueError("Isi DATA_PATH dengan lokasi dataset sebelum menjalankan file.")
+    dataset_path = find_dataset()
+    raw_data = read_dataset(dataset_path)
 
-    raw_data = read_data(DATA_PATH)
-    rfm_data, reference_date = build_rfm(raw_data)
+    print(f"Jumlah baris dataset mentah: {len(raw_data):,}")
+    rfm, reference_date, used_rows = calculate_rfm(raw_data)
 
-    print(f"Tanggal acuan Recency: {reference_date.date()}")
-    print(f"Jumlah pelanggan     : {len(rfm_data):,}")
-    print("\nRingkasan RFM:")
-    display(rfm_data.head())
+    print("\\n" + "=" * 65)
+    print("HASIL PERHITUNGAN RFM")
+    print("=" * 65)
+    print(f"Tanggal acuan Recency : {reference_date.date()}")
+    print(f"Baris pembelian dipakai: {used_rows:,}")
+    print(fJumlah pelanggan       : {len(rfm):,}")
 
-    print("\nStatistik RFM:")
-    display(rfm_data[["Recency", "Frequency", "Monetary"]].describe())
+    print("\\n5 BARIS PERTAMA RFM")
+    try:
+        from IPython.display import display
+        display(rfm.head())
+        display(rfm[["Recency", "Frequency", "Monetary"]].describe())
+    except ImportError:
+        print(rfm.head().to_string(index=False))
+        print(rfm[["Recency", "Frequency", "Monetary"]].describe().to_string())
 
-    rfm_data.to_csv(OUTPUT_PATH, index=False)
-    print(f"\nHasil RFM disimpan ke: {OUTPUT_PATH}")
+    rfm.to_csv(OUTPUT_PATH, index=False)
+    print(f"\\nFile hasil RFM disimpan di: {OUTPUT_PATH}")
