@@ -4,6 +4,7 @@
 
 from pathlib import Path
 import pandas as pd
+import matplotlib.pyplot as plt
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 DATA_FILENAME = "Electronic_sales_Sep2023-Sep2024.csv"
@@ -140,3 +141,20 @@ if __name__ == "__main__":
 
     rfm.to_csv(OUTPUT_PATH, index=False)
     print(f"\nHasil RFM disimpan di: {OUTPUT_PATH}")
+
+    # Visualisasi awal distribusi RFM untuk pemeriksaan sebelum clustering.
+    features = ["Recency", "Frequency", "Monetary"]
+    fig, axes = plt.subplots(1, 3, figsize=(16, 4))
+    for ax, feature in zip(axes, features):
+        ax.hist(rfm[feature], bins=30, edgecolor="black")
+        ax.set_title(f"Distribusi {feature}")
+        ax.set_xlabel(feature)
+        ax.set_ylabel("Jumlah pelanggan")
+        ax.grid(axis="y", alpha=0.25)
+    fig.suptitle("Distribusi Fitur RFM Pelanggan", fontsize=14)
+    fig.tight_layout()
+    plot_path = SCRIPT_DIR / "visualisasi_distribusi_rfm.png"
+    fig.savefig(plot_path, dpi=150, bbox_inches="tight")
+    plt.show()
+    print(f"Visualisasi disimpan di: {plot_path}")
+
