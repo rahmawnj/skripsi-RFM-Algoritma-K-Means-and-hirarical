@@ -95,8 +95,14 @@ jobs:
                   "dendrogram_hierarchical.png",
                   "scatter_kmeans.png",
                   "scatter_hierarchical.png",
-                  "perbandingan_algoritma.csv",
-                  "grafik_perbandingan_algoritma.png",
+                  "perbandingan_algoritma_semua_k.csv",
+                  "perbandingan_k_terbaik.csv",
+                  "grafik_silhouette_perbandingan.png",
+                  "grafik_dbi_perbandingan.png",
+                  "grafik_waktu_perbandingan.png",
+                  "grafik_ukuran_cluster.png",
+                  "profil_cluster_kmeans.csv",
+                  "profil_cluster_hierarchical.csv",
                   "ringkasan_perbandingan.txt",
               ]
               missing = [name for name in required_outputs if not (work / name).is_file()]
@@ -104,10 +110,18 @@ jobs:
                   raise AssertionError(f"Output pipeline tidak terbentuk: {missing}")
 
               comparison = pd.read_csv(work / "perbandingan_algoritma.csv")
-              if len(comparison) != 2:
-                  raise AssertionError("Tabel perbandingan harus memiliki tepat dua algoritma.")
-              if comparison["Jumlah_Cluster"].nunique() != 1:
-                  raise AssertionError("K-Means dan Hierarchical harus dibandingkan pada k yang sama.")
+              if comparison["Algoritma"].nunique() != 2:
+                  raise AssertionError("Tabel semua k harus memuat kedua algoritma.")
+              if comparison["k"].nunique() < 2:
+                  raise AssertionError("Eksperimen harus menguji lebih dari satu nilai k.")
+
+              best = pd.read_csv(work / "perbandingan_k_terbaik.csv")
+              if len(best) != 2 or best["Algoritma"].nunique() != 2:
+                  raise AssertionError("Tabel k terbaik harus memuat dua algoritma.")
+              if not set(best["Algoritma"]) == {
+                  "K-Means", "Agglomerative Hierarchical (Ward)"
+              }:
+                  raise AssertionError("Nama metodologi pada tabel hasil tidak sesuai.")
 
               print("\nSMOKE TEST BERHASIL: seluruh skrip berjalan dan output utama terbentuk.")
           PY
