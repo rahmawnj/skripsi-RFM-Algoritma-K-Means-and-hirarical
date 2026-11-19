@@ -45,9 +45,9 @@ Fitur demografis, jenis produk, metode pembayaran, dan rating tidak dipakai untu
 4. Mengagregasi data per Customer ID menjadi Recency, Frequency, dan Monetary.
 5. Memeriksa distribusi fitur RFM.
 6. Menerapkan transformasi `log1p` untuk mengurangi skewness, lalu `StandardScaler` agar skala ketiga fitur sebanding. Outlier tidak otomatis dihapus agar pelanggan bernilai tinggi tidak hilang dari populasi.
-7. Menguji K-Means pada k=2 sampai k=10 (atau sampai k maksimum yang valid), lalu memilih k dengan Silhouette Score tertinggi pada rentang uji.
-8. Menjalankan Agglomerative Hierarchical Clustering dengan linkage Ward dan Euclidean distance pada seluruh data, menggunakan graph tetangga terdekat untuk membatasi konektivitas.
-9. Menggunakan nilai k yang sama dengan K-Means untuk perbandingan akhir.
+7. Menguji K-Means pada k=2 sampai k=10 (atau sampai k maksimum yang valid).
+8. Menguji Agglomerative Hierarchical Clustering pada rentang k yang sama, dengan linkage Ward dan Euclidean distance pada seluruh data serta graph tetangga terdekat untuk membatasi konektivitas.
+9. Memilih satu nilai k bersama berdasarkan rata-rata Silhouette Score kedua algoritma untuk menghindari pemilihan k yang hanya menguntungkan salah satu algoritma.
 10. Menghitung Silhouette Score, Davies-Bouldin Index, dan waktu fit.
 11. Menginterpretasikan cluster menggunakan nilai RFM asli, bukan nilai standardisasi.
 12. Menyimpulkan hasil dengan mempertimbangkan metrik, profil, ukuran cluster, dan keterbatasan metode.
@@ -80,16 +80,17 @@ File hasil yang dibuat otomatis:
 - `preprocessing_info.json`
 - `visualisasi_preprocessing.png`
 - `kmeans_metrics.csv`
-- `hasil_kmeans.csv`
-- `profil_cluster_kmeans.csv`
+- `hasil_kmeans_semua_k.csv`
 - `grafik_elbow_kmeans.png`
 - `grafik_silhouette_kmeans.png`
-- `scatter_kmeans.png`
 - `hierarchical_metrics.csv`
-- `hasil_hierarchical.csv`
-- `profil_cluster_hierarchical.csv`
+- `hasil_hierarchical_semua_k.csv`
 - `dendrogram_hierarchical.png`
-- `scatter_hierarchical.png`
+- `pemilihan_k_bersama.csv`
+- `hasil_kmeans.csv` dan `hasil_hierarchical.csv` (label final pada k bersama)
+- `profil_cluster_kmeans.csv` dan `profil_cluster_hierarchical.csv`
+- `scatter_kmeans.png` dan `scatter_hierarchical.png`
+- `grafik_ukuran_cluster.png`
 - `perbandingan_algoritma.csv`
 - `grafik_perbandingan_algoritma.png`
 - `ringkasan_perbandingan.txt`
