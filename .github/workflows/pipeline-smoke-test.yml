@@ -1,0 +1,113 @@
+name: RFM clustering smoke test
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  smoke-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run complete pipeline on temporary synthetic data
+        env:
+          MPLBACKEND: Agg
+        run: |
+          python - <<'PY'
+          import os
+          import shutil
+          import subprocess
+          import sys
+          import tempfile
+          from pathlib import Path
+
+          import numpy as np
+          import pandas as pd
+
+          repo = Path.cwd()
+          scripts = [
+              "01_eksplorasi_dataset.py",
+              "02_perhitungan_rfm.py",
+              "03_preprocessing.py",
+              "04_kmeans.py",
+              "05_hierarchical.py",
+              "06_evaluasi_perbandingan.py",
+          ]
+
+          rng = np.random.default_rng(2026)
+          rows = []
+          start = pd.Timestamp("2023-09-24")
+          for customer_id in range(1, 121):
+              purchase_count = int(rng.integers(2, 9))
+              customer_factor = rng.uniform(0.5, 2.5)
+              for _ in range(purchase_count):
+                  purchase_date = start + pd.Timedelta(days=int(rng.integers(0, 365)))
+                  total_price = round(float(rng.uniform(80, 1800) * customer_factor), 2)
+                  addon_total = round(float(rng.uniform(0, 160)), 2)
+                  rows.append({
+                      "Customer ID": customer_id,
+                      "Purchase Date": purchase_date.strftime("%Y-%m-%d"),
+                      "Total Price": total_price,
+                      "Add-on Total": addon_total,
+                      "Order Status": "Completed" if rng.random() < 0.82 else "Cancelled",
+                  })
+
+          with tempfile.TemporaryDirectory() as temp_dir:
+              work = Path(temp_dir)
+              for script in scripts:
+                  shutil.copy2(repo / script, work / script)
+
+              pd.DataFrame(rows).to_csv(
+                  work / "Electronic_sales_Sep2023-Sep2024.csv", index=False
+              )
+
+              env = os.environ.copy()
+              env["MPLBACKEND"] = "Agg"
+              for script in scripts:
+                  print(f"\n===== Running {script} =====", flush=True)
+                  subprocess.run(
+                      [sys.executable, script],
+                      cwd=work,
+                      env=env,
+                      check=True,
+                  )
+
+              required_outputs = [
+                  "hasil_rfm.csv",
+                  "rfm_scaled.csv",
+                  "kmeans_metrics.csv",
+                  "hierarchical_metrics.csv",
+                  "hasil_kmeans.csv",
+                  "hasil_hierarchical.csv",
+                  "dendrogram_hierarchical.png",
+                  "scatter_kmeans.png",
+                  "scatter_hierarchical.png",
+                  "perbandingan_algoritma.csv",
+                  "grafik_perbandingan_algoritma.png",
+                  "ringkasan_perbandingan.txt",
+              ]
+              missing = [name for name in required_outputs if not (work / name).is_file()]
+              if missing:
+                  raise AssertionError(f"Output pipeline tidak terbentuk: {missing}")
+
+              comparison = pd.read_csv(work / "perbandingan_algoritma.csv")
+              if len(comparison) != 2:
+                  raise AssertionError("Tabel perbandingan harus memiliki tepat dua algoritma.")
+              if comparison["Jumlah_Cluster"].nunique() != 1:
+                  raise AssertionError("K-Means dan Hierarchical harus dibandingkan pada k yang sama.")
+
+              print("\nSMOKE TEST BERHASIL: seluruh skrip berjalan dan output utama terbentuk.")
+          PY
