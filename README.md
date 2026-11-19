@@ -118,6 +118,8 @@ Ward linkage digunakan dengan Euclidean distance. Implementasi ini adalah Hierar
 
 ## 10. Cara menjalankan di Google Colab
 
+Untuk menjalankan seluruh proses melalui satu notebook, buka [`00_jalankan_pipeline_rfm.ipynb`](00_jalankan_pipeline_rfm.ipynb) di Google Colab. Notebook akan menarik versi terbaru, memasang library, mencari CSV di folder/cache KaggleHub, menjalankan enam tahap, lalu menampilkan tabel dan grafik hasil.
+
 Pastikan file CSV berada satu folder dengan seluruh skrip. Tarik pembaruan repository, lalu jalankan secara berurutan:
 
 \`\`\`python
