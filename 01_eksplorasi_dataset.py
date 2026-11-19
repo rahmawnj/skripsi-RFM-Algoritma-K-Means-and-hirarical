@@ -1,76 +1,77 @@
 # 01_eksplorasi_dataset.py
-# Jalankan dari Google Colab.
-# Tujuan: mengunggah/membaca dataset dan memeriksa struktur data sebelum preprocessing.
+# Eksplorasi dataset Electronic Sales Sep 2023 - Sep 2024.
+# Tidak perlu upload manual: file CSV dicari di folder yang sama dengan script,
+# lalu fallback ke lokasi cache KaggleHub.
 
 from pathlib import Path
 import pandas as pd
 
-# Jika file sudah ada di folder Colab, isi nama/path file di sini.
-DATA_PATH = ""  # Contoh: "/content/data_penjualan.csv"
+SCRIPT_DIR = Path(__file__).resolve().parent
+DATA_FILENAME = "Electronic_sales_Sep2023-Sep2024.csv"
+KAGGLEHUB_PATH = (
+    Path.home()
+    / ".cache/kagglehub/datasets/cameronseamons/"
+      "electronic-sales-sep2023-sep2024/versions/5"
+    / DATA_FILENAME
+)
 
+def find_dataset():
+    candidates = [
+        SCRIPT_DIR / DATA_FILENAME,
+        Path("/content") / DATA_FILENAME,
+        KAGGLEHUB_PATH,
+    ]
 
-def upload_dataset():
-    """Memunculkan dialog upload jika dijalankan di Google Colab."""
+    for candidate in candidates:
+        if candidate.is_file():
+            print(f"Dataset ditemukan: {candidate}")
+            return candidate
+
+    searched = "\\n".join(f"- {path}" for path in candidates)
+    raise FileNotFoundError(
+        "Dataset CSV tidak ditemukan. Lokasi yang sudah diperiksa:\\n"
+        f"{searched}\\n"
+        "Pastikan file CSV berada satu folder dengan file Python."
+    )
+
+def read_dataset(path):
     try:
-        from google.colab import files
-        uploaded = files.upload()
-        if not uploaded:
-            raise RuntimeError("Tidak ada file yang diunggah.")
-        return f"/content/{next(iter(uploaded.keys()))}"
-    except ImportError as exc:
-        raise RuntimeError(
-            "Upload otomatis hanya tersedia di Google Colab. "
-            "Isi DATA_PATH dengan lokasi dataset."
-        ) from exc
+        return pd.read_csv(path)
+    except UnicodeDecodeError:
+        return pd.read_csv(path, encoding="latin-1")
 
+def inspect_dataset(df):
+    print("\\n" + "=" * 75)
+    print("EKSPLORASI DATASET ELECTRONIC SALES")
+    print("=" * 75)
+    print(f"Jumlah baris       : {len(df):,}")
+    print(f"Jumlah kolom       : {len(df.columns):,}")
+    print(f"Jumlah baris duplikat: {df.duplicated().sum():,}")
 
-def load_dataset(path):
-    path = Path(path)
-    if not path.exists():
-        raise FileNotFoundError(f"File tidak ditemukan: {path}")
+    print("\\nDAFTAR KOLOM DAN TIPE DATA")
+    for number, column in enumerate(df.columns, start=1):
+        print(f"{number:>2}. {column} ({df[column].dtype})")
 
-    suffix = path.suffix.lower()
-    if suffix == ".csv":
-        # Mencoba UTF-8 terlebih dahulu, lalu latin-1 untuk file CSV tertentu.
-        try:
-            return pd.read_csv(path)
-        except UnicodeDecodeError:
-            return pd.read_csv(path, encoding="latin-1")
-    if suffix in (".xlsx", ".xls"):
-        return pd.read_excel(path)
-    if suffix == ".parquet":
-        return pd.read_parquet(path)
+    print("\\nMISSING VALUES")
+    missing = df.isna().sum()
+    missing = missing[missing > 0].sort_values(ascending=False)
+    print(missing.to_string() if not missing.empty else "Tidak ada missing value.")
 
-    raise ValueError("Format belum didukung. Gunakan CSV, XLSX, XLS, atau Parquet.")
+    print("\\nDISTRIBUSI ORDER STATUS")
+    if "Order Status" in df.columns:
+        print(df["Order Status"].value_counts(dropna=False).to_string())
 
+    print("\\nSTATISTIK DESKRIPTIF")
+    print(df.describe(include="all").transpose().to_string())
 
-def inspect_dataset(dataframe):
-    print("=" * 70)
-    print("RINGKASAN DATASET")
-    print("=" * 70)
-    print(f"Jumlah baris   : {dataframe.shape[0]:,}")
-    print(f"Jumlah kolom   : {dataframe.shape[1]:,}")
-    print(f"Duplikasi baris: {dataframe.duplicated().sum():,}")
-
-    print("\nDAFTAR KOLOM")
-    for index, column in enumerate(dataframe.columns, start=1):
-        print(f"{index:>2}. {column!r} ({dataframe[column].dtype})")
-
-    print("\nINFORMASI DATA")
-    dataframe.info()
-
-    print("\nMISSING VALUES")
-    missing = dataframe.isna().sum().sort_values(ascending=False)
-    print(missing[missing > 0] if missing.any() else "Tidak ada missing value.")
-
-    print("\nSTATISTIK DESKRIPTIF")
-    print(dataframe.describe(include="all").transpose())
-
-    print("\n5 BARIS PERTAMA")
-    display(dataframe.head())
-
+    print("\\n5 BARIS PERTAMA")
+    try:
+        from IPython.display import display
+        display(df.head())
+    except ImportError:
+        print(df.head().to_string(index=False))
 
 if __name__ == "__main__":
-    dataset_path = DATA_PATH.strip() or upload_dataset()
-    df = load_dataset(dataset_path)
-    inspect_dataset(df)
+    dataset_path = find_dataset()
+    data = read_dataset(dataset_path)
+    inspect_dataset(data)
