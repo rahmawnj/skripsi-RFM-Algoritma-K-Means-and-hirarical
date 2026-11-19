@@ -3,6 +3,7 @@
 
 from pathlib import Path
 import time
+import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
@@ -35,6 +36,9 @@ def main():
     tested_k = [k for k in K_VALUES if k < len(X)]
     records = []
     all_labels = pd.DataFrame({"Customer": original["Customer"]})
+    silhouette_sample_size = min(5000, len(X))
+    rng = np.random.default_rng(RANDOM_STATE)
+    sample_indices = np.sort(rng.choice(len(X), size=silhouette_sample_size, replace=False))
 
     print("Menjalankan K-Means untuk setiap nilai k...")
     for k in tested_k:
@@ -43,10 +47,7 @@ def main():
         labels = model.fit_predict(X)
         elapsed = time.perf_counter() - start
 
-        silhouette_sample_size = min(5000, len(X))
-        sil = silhouette_score(
-            X, labels, sample_size=silhouette_sample_size, random_state=RANDOM_STATE
-        )
+        sil = silhouette_score(X[sample_indices], labels[sample_indices])
         dbi = davies_bouldin_score(X, labels)
         records.append({
             "k": k,
