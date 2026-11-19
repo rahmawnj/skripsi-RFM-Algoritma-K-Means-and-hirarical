@@ -90,10 +90,10 @@ def main():
         "- Waktu fit mengukur proses pelatihan/fitting, bukan seluruh waktu preprocessing atau evaluasi.",
         "- Kesimpulan akhir perlu mempertimbangkan profil RFM, ukuran cluster, dan keterbatasan dataset; jangan memilih algoritma hanya dari satu metrik.",
     ]
-    REPORT_PATH.write_text("\\n".join(lines), encoding="utf-8")
+    REPORT_PATH.write_text("\n".join(lines), encoding="utf-8")
 
-    print("\\n".join(lines))
-    print(f"\\nTabel perbandingan : {OUTPUT_PATH}")
+    print("\n".join(lines))
+    print(f"\nTabel perbandingan : {OUTPUT_PATH}")
     print(f"Grafik perbandingan: {CHART_PATH}")
     print(f"Ringkasan          : {REPORT_PATH}")
 
