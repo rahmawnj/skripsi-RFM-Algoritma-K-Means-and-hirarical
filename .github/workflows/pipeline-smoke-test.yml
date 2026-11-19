@@ -87,6 +87,8 @@ jobs:
 
               required_outputs = [
                   "hasil_rfm.csv",
+                  "audit_kualitas_data.csv",
+                  "distribusi_order_status.csv",
                   "rfm_scaled.csv",
                   "kmeans_metrics.csv",
                   "hierarchical_metrics.csv",
