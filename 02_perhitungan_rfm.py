@@ -46,6 +46,43 @@ def read_dataset(path):
     except UnicodeDecodeError:
         return pd.read_csv(path, encoding="latin-1")
 
+def create_data_quality_report(raw):
+    """Simpan audit awal; duplikasi dilaporkan dan tidak dihapus otomatis."""
+    report = {
+        "Indikator": [
+            "Jumlah baris mentah",
+            "Jumlah kolom mentah",
+            "Jumlah baris duplikat persis",
+            "Customer ID kosong",
+            "Purchase Date tidak valid/kosong",
+            "Total Price tidak valid/kosong",
+            "Add-on Total kosong (diisi 0 saat RFM)",
+            "Order Status kosong",
+        ],
+        "Jumlah": [
+            len(raw),
+            len(raw.columns),
+            int(raw.duplicated().sum()),
+            int(raw[CUSTOMER_COLUMN].isna().sum()) if CUSTOMER_COLUMN in raw else None,
+            int(pd.to_datetime(raw[DATE_COLUMN], errors="coerce").isna().sum()) if DATE_COLUMN in raw else None,
+            int(pd.to_numeric(raw[AMOUNT_COLUMN], errors="coerce").isna().sum()) if AMOUNT_COLUMN in raw else None,
+            int(raw[ADDON_AMOUNT_COLUMN].isna().sum()) if ADDON_AMOUNT_COLUMN in raw else len(raw),
+            int(raw[STATUS_COLUMN].isna().sum()) if STATUS_COLUMN in raw else None,
+        ],
+    }
+    quality = pd.DataFrame(report)
+    quality.to_csv(SCRIPT_DIR / "audit_kualitas_data.csv", index=False)
+    if STATUS_COLUMN in raw.columns:
+        status_counts = (
+            raw[STATUS_COLUMN].astype("string").fillna("(kosong)")
+            .value_counts(dropna=False)
+            .rename_axis("Order Status")
+            .reset_index(name="Jumlah")
+        )
+        status_counts.to_csv(SCRIPT_DIR / "distribusi_order_status.csv", index=False)
+    return quality
+
+
 def calculate_rfm(raw):
     required = [CUSTOMER_COLUMN, DATE_COLUMN, AMOUNT_COLUMN, STATUS_COLUMN]
     missing = [column for column in required if column not in raw.columns]
@@ -118,6 +155,9 @@ if __name__ == "__main__":
     dataset_path = find_dataset()
     raw_data = read_dataset(dataset_path)
     print(f"Jumlah baris dataset mentah: {len(raw_data):,}")
+    quality_report = create_data_quality_report(raw_data)
+    print("\nAUDIT KUALITAS DATA")
+    print(quality_report.to_string(index=False))
 
     rfm, reference_date, used_rows, excluded_status = calculate_rfm(raw_data)
 
@@ -126,7 +166,7 @@ if __name__ == "__main__":
     print("=" * 68)
     print(f"Tanggal acuan Recency        : {reference_date.date()}")
     print(f"Pesanan Completed digunakan : {used_rows:,}")
-    print(f"Baris status selain Completed: {excluded_status:,}")
+    print(f"Baris valid dengan status selain Completed: {excluded_status:,}")
     print(f"Jumlah pelanggan unik        : {len(rfm):,}")
 
     print("\n5 BARIS PERTAMA")
@@ -157,4 +197,6 @@ if __name__ == "__main__":
     fig.savefig(plot_path, dpi=150, bbox_inches="tight")
     plt.show()
     print(f"Visualisasi disimpan di: {plot_path}")
+    print(f"Audit kualitas data disimpan di: {SCRIPT_DIR / 'audit_kualitas_data.csv'}")
+    print(f"Distribusi status disimpan di: {SCRIPT_DIR / 'distribusi_order_status.csv'}")
 
