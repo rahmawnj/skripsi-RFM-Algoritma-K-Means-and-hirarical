@@ -109,7 +109,7 @@ jobs:
               if missing:
                   raise AssertionError(f"Output pipeline tidak terbentuk: {missing}")
 
-              comparison = pd.read_csv(work / "perbandingan_algoritma.csv")
+              comparison = pd.read_csv(work / "perbandingan_algoritma_semua_k.csv")
               if comparison["Algoritma"].nunique() != 2:
                   raise AssertionError("Tabel semua k harus memuat kedua algoritma.")
               if comparison["k"].nunique() < 2:
